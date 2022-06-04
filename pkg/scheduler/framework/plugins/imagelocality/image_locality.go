@@ -97,6 +97,10 @@ func calculatePriority(sumScores int64, numContainers int) int64 {
 func sumImageScores(nodeInfo *framework.NodeInfo, containers []v1.Container, totalNumNodes int) int64 {
 	var sum int64
 	for _, container := range containers {
+        // if pullPolicy is set to Always score it with 0 points
+        if container.ImagePullPolicy == "Always" {
+	        continue
+        }
 		if state, ok := nodeInfo.ImageStates[normalizedImageName(container.Image)]; ok {
 			sum += scaledImageScore(state, totalNumNodes)
 		}
