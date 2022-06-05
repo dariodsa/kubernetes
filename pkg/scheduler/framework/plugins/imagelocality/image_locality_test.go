@@ -37,9 +37,11 @@ func TestImageLocalityPriority(t *testing.T) {
 			{
 
 				Image: "gcr.io/40",
+				ImagePullPolicy: "IfNotPresent",
 			},
 			{
 				Image: "gcr.io/250",
+				ImagePullPolicy: "IfNotPresent",
 			},
 		},
 	}
@@ -48,9 +50,11 @@ func TestImageLocalityPriority(t *testing.T) {
 		Containers: []v1.Container{
 			{
 				Image: "gcr.io/40",
+				ImagePullPolicy: "IfNotPresent",
 			},
 			{
 				Image: "gcr.io/300",
+				ImagePullPolicy: "IfNotPresent",
 			},
 		},
 	}
@@ -59,9 +63,11 @@ func TestImageLocalityPriority(t *testing.T) {
 		Containers: []v1.Container{
 			{
 				Image: "gcr.io/10",
+				ImagePullPolicy: "IfNotPresent",
 			},
 			{
 				Image: "gcr.io/4000",
+				ImagePullPolicy: "IfNotPresent",
 			},
 		},
 	}
@@ -70,12 +76,32 @@ func TestImageLocalityPriority(t *testing.T) {
 		Containers: []v1.Container{
 			{
 				Image: "gcr.io/300",
+				ImagePullPolicy: "IfNotPresent",
 			},
 			{
 				Image: "gcr.io/600",
+				ImagePullPolicy: "IfNotPresent",
 			},
 			{
 				Image: "gcr.io/900",
+				ImagePullPolicy: "IfNotPresent",
+			},
+		},
+	}
+
+	test300600900_always900 := v1.PodSpec{
+		Containers: []v1.Container{
+			{
+				Image: "gcr.io/300",
+				ImagePullPolicy: "IfNotPresent",
+			},
+			{
+				Image: "gcr.io/600",
+				ImagePullPolicy: "IfNotPresent",
+			},
+			{
+				Image: "gcr.io/900",
+				ImagePullPolicy: "Always",
 			},
 		},
 	}
@@ -84,9 +110,23 @@ func TestImageLocalityPriority(t *testing.T) {
 		Containers: []v1.Container{
 			{
 				Image: "gcr.io/30",
+				ImagePullPolicy: "IfNotPresent",
 			},
 			{
 				Image: "gcr.io/40",
+				ImagePullPolicy: "IfNotPresent",
+			},
+		},
+	}
+	test3040_always3040 := v1.PodSpec{
+		Containers: []v1.Container{
+			{
+				Image: "gcr.io/30",
+				ImagePullPolicy: "Always",
+			},
+			{
+				Image: "gcr.io/40",
+				ImagePullPolicy: "Always",
 			},
 		},
 	}
@@ -327,6 +367,55 @@ func TestImageLocalityPriority(t *testing.T) {
 			nodes:        []*v1.Node{makeImageNode("node1", node203040), makeImageNode("node2", node400030)},
 			expectedList: []framework.NodeScore{{Name: "node1", Score: 1}, {Name: "node2", Score: 0}},
 			name:         "pod with multiple small images",
+		},
+		{
+			// Pod: gcr.io/30 gcr.io/40
+
+			// Node1
+			// Image: gcr.io/20:latest 20MB, gcr.io/30:latest 30MB gcr.io/40:latest 40MB
+			// Score: 100 * (30M + 40M * 1/2 - 23M) / (1000M * 2 - 23M) = 1
+
+			// Node2
+			// Image: 100 * (30M - 23M) / (1000M * 2 - 23M) = 0
+			// Score: 0
+			pod:          &v1.Pod{Spec: test3040},
+			nodes:        []*v1.Node{makeImageNode("node1", node203040), makeImageNode("node2", node400030)},
+			expectedList: []framework.NodeScore{{Name: "node1", Score: 1}, {Name: "node2", Score: 0}},
+			name:         "pod with multiple small images",
+		},
+		{
+			// Pod: gcr.io/30 (Always) gcr.io/40 (Always)
+
+			// Node1
+			// Image: gcr.io/20:latest 20MB, gcr.io/30:latest 30MB gcr.io/40:latest 40MB
+			// Score: 0 + 0 = 0
+
+			// Node2
+			// Image: gcr.io/4000:latest 4000MB, gcr.io/30:latest 30MB
+			// Score: 0 + 0 = 0
+			pod:          &v1.Pod{Spec: test3040_always3040},
+			nodes:        []*v1.Node{makeImageNode("node1", node203040), makeImageNode("node2", node400030)},
+			expectedList: []framework.NodeScore{{Name: "node1", Score: 0}, {Name: "node2", Score: 0}},
+			name:         "pod with multiple small images and all ImagePullPolicy set to Always",
+		},
+		{
+			// Pod: gcr.io/300 gcr.io/600 gcr.io/900 (Always)
+
+			// Node1
+			// Image: gcr.io/600:latest 600MB, gcr.io/900:latest 900MB
+			// Score: 100 * (0 + 600M * 2/3 + 0  - 23M) / (1000M * 3 - 23M) = 12
+
+			// Node2
+			// Image: gcr.io/300:latest 300MB, gcr.io/600:latest 600MB, gcr.io/900:latest 900MB
+			// Score: 100 * (300M * 1/3 + 600M * 2/3 + 0 - 23M) / (1000M *3 - 23M) = 16
+
+			// Node3
+			// Image:
+			// Score: 0
+			pod:          &v1.Pod{Spec: test300600900_always900},
+			nodes:        []*v1.Node{makeImageNode("node1", node60040900), makeImageNode("node2", node300600900), makeImageNode("node3", nodeWithNoImages)},
+			expectedList: []framework.NodeScore{{Name: "node1", Score: 12}, {Name: "node2", Score: 16}, {Name: "node3", Score: 0}},
+			name:         "pod with multiple large images, mixture of ImagePullPolicy, node2 prefered",
 		},
 	}
 
