@@ -63,7 +63,16 @@ func (pl *ImageLocality) Score(ctx context.Context, state *framework.CycleState,
 	}
 	totalNumNodes := len(nodeInfos)
 
-	score := calculatePriority(sumImageScores(nodeInfo, pod.Spec.Containers, totalNumNodes), len(pod.Spec.Containers))
+    // Filtering containers with ImagePullPolicy different from Always
+    // Ones with Always will score 0 point either way
+    var notAlwaysContainers []v1.Container;
+    for _, container := range pod.Spec.Containers {
+        if container.ImagePullPolicy != "Always" {
+            notAlwaysContainers = append(notAlwaysContainers, container)
+        }
+    }
+
+	score := calculatePriority(sumImageScores(nodeInfo, notAlwaysContainers, totalNumNodes), len(pod.Spec.Containers))
 
 	return score, nil
 }
@@ -97,10 +106,6 @@ func calculatePriority(sumScores int64, numContainers int) int64 {
 func sumImageScores(nodeInfo *framework.NodeInfo, containers []v1.Container, totalNumNodes int) int64 {
 	var sum int64
 	for _, container := range containers {
-		// if pullPolicy is set to Always score it with 0 points
-		if container.ImagePullPolicy == "Always" {
-			continue
-		}
 		if state, ok := nodeInfo.ImageStates[normalizedImageName(container.Image)]; ok {
 			sum += scaledImageScore(state, totalNumNodes)
 		}
