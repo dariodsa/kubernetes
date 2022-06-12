@@ -415,7 +415,7 @@ func TestImageLocalityPriority(t *testing.T) {
 			pod:          &v1.Pod{Spec: test300600900_always900},
 			nodes:        []*v1.Node{makeImageNode("node1", node60040900), makeImageNode("node2", node300600900), makeImageNode("node3", nodeWithNoImages)},
 			expectedList: []framework.NodeScore{{Name: "node1", Score: 12}, {Name: "node2", Score: 16}, {Name: "node3", Score: 0}},
-			name:         "pod with multiple large images, mixture of ImagePullPolicy, node2 prefered",
+			name:         "pod with multiple large images, mixture of ImagePullPolicy, node2 preferred",
 		},
 	}
 
