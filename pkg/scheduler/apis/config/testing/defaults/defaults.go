@@ -69,6 +69,7 @@ var PluginsV1beta2 = &config.Plugins{
 			{Name: names.PodTopologySpread},
 			{Name: names.TaintToleration},
 			{Name: names.NodeAffinity},
+			{Name: names.ImageLocality},
 		},
 	},
 	Score: config.PluginSet{
@@ -227,6 +228,7 @@ var ExpandedPluginsV1beta3 = &config.Plugins{
 			{Name: names.NodeAffinity},
 			{Name: names.PodTopologySpread},
 			{Name: names.InterPodAffinity},
+			{Name: names.ImageLocality},
 		},
 	},
 	Score: config.PluginSet{

@@ -75,6 +75,7 @@ func getDefaultPlugins() *v1beta2.Plugins {
 				{Name: names.PodTopologySpread},
 				{Name: names.TaintToleration},
 				{Name: names.NodeAffinity},
+				{Name: names.ImageLocality},
 			},
 		},
 		Score: v1beta2.PluginSet{

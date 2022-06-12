@@ -19,6 +19,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -145,6 +146,7 @@ profiles:
       enabled:
       - name: InterPodAffinity
       - name: TaintToleration
+      - name: ImageLocality
       disabled:
       - name: "*"
     score:
@@ -318,6 +320,7 @@ leaderElection:
 						Enabled: []config.Plugin{
 							{Name: "InterPodAffinity"},
 							{Name: "TaintToleration"},
+							{Name: "ImageLocality"},
 						},
 					},
 					QueueSort: config.PluginSet{Enabled: []config.Plugin{{Name: "PrioritySort"}}},
@@ -356,6 +359,7 @@ leaderElection:
 					PostFilter: config.PluginSet{Enabled: []config.Plugin{{Name: "DefaultPreemption"}}},
 					PreScore: config.PluginSet{
 						Enabled: []config.Plugin{
+							{Name: "ImageLocality"},
 							{Name: "InterPodAffinity"},
 							{Name: "TaintToleration"},
 						},
@@ -538,9 +542,18 @@ leaderElection:
 				gotPlugins := make(map[string]*config.Plugins)
 				for n, p := range sched.Profiles {
 					gotPlugins[n] = p.ListPlugins()
+					var s3 []byte;
+					s3, err = json.Marshal(p.ListPlugins());
+					fmt.Fprintf(os.Stderr, "Profiles: %s", string(s3));
 				}
-
+				
 				if diff := cmp.Diff(tc.wantPlugins, gotPlugins); diff != "" {
+					var s1,s2 []byte;
+					
+					s1, err = json.Marshal(gotPlugins);
+					fmt.Fprintf(os.Stderr, "EEEEEEEEEEEEEEEEEEEEEEEEE PluginsGot: %s", string(s1));
+					s2, err = json.Marshal(tc.wantPlugins);
+					fmt.Fprintf(os.Stderr, "PluginsWant: %s", string(s2));
 					t.Errorf("Unexpected plugins diff (-want, +got): %s", diff)
 				}
 			}
