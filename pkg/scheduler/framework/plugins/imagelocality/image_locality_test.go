@@ -423,14 +423,24 @@ func TestImageLocalityPriority(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			snapshot := cache.NewSnapshot(nil, test.nodes)
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			state := framework.NewCycleState()
 			fh, _ := runtime.NewFramework(nil, nil, wait.NeverStop, runtime.WithSnapshotSharedLister(snapshot))
 
 			p, _ := New(nil, fh)
 			var gotList framework.NodeScoreList
+
+			plugin := p.(*ImageLocality)
+
 			for _, n := range test.nodes {
 				nodeName := n.ObjectMeta.Name
-				score, status := p.(framework.ScorePlugin).Score(context.Background(), state, test.pod, nodeName)
+				status := plugin.PreScore(ctx, state, test.pod, test.nodes)
+				if !status.IsSuccess() {
+					t.Fatalf("unexpected error: %v", status)
+				}
+				score, status := plugin.Score(context.Background(), state, test.pod, nodeName)
 				if !status.IsSuccess() {
 					t.Errorf("unexpected error: %v", status)
 				}
