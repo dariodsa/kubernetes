@@ -72,16 +72,21 @@ func (pl *ImageLocality) Score(ctx context.Context, state *framework.CycleState,
 	}
 	totalNumNodes := len(nodeInfos)
 
-	// Filtering containers with ImagePullPolicy different from Always
-	// Ones with Always will score 0 point either way
-	var notAlwaysContainers []v1.Container;
-	for _, container := range pod.Spec.Containers {
-		if container.ImagePullPolicy != "Always" {
-			notAlwaysContainers = append(notAlwaysContainers, container)
-		}
+	c, err := state.Read(preScoreStateKey)
+	if err != nil {
+		return 0, framework.AsStatus(fmt.Errorf("reading %q from cycleState: %w", preScoreStateKey, err))
 	}
 
-	score := calculatePriority(sumImageScores(nodeInfo, notAlwaysContainers, totalNumNodes), len(pod.Spec.Containers))
+	s, ok := c.(*preScoreState)
+	if !ok {
+		return 0, framework.AsStatus(fmt.Errorf("cannot convert saved state to selectorspread.preScoreState"))
+	}
+
+	if len(s.containersPullAlways) == 0 {
+		return 0, nil;
+	}
+
+	score := calculatePriority(sumImageScores(nodeInfo, s.containersPullAlways, totalNumNodes), len(pod.Spec.Containers))
 
 	return score, nil
 }
