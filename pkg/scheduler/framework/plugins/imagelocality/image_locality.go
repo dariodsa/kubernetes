@@ -42,8 +42,17 @@ type ImageLocality struct {
 
 var _ framework.ScorePlugin = &ImageLocality{}
 
+var _ framework.PreScorePlugin = &ImageLocality{}
+
 // Name is the name of the plugin used in the plugin registry and configurations.
 const Name = names.ImageLocality
+// preScoreStateKey is the key in CycleState to ImageLocality pre-computed data for Scoring.
+const preScoreStateKey = "PreScore" + Name
+
+// preScoreState computed at PreScore and used at Score.
+type preScoreState struct {
+	containersPullAlways []v1.Container
+}
 
 // Name returns name of the plugin. It is used in logs, etc.
 func (pl *ImageLocality) Name() string {
@@ -79,6 +88,31 @@ func (pl *ImageLocality) Score(ctx context.Context, state *framework.CycleState,
 
 // ScoreExtensions of the Score plugin.
 func (pl *ImageLocality) ScoreExtensions() framework.ScoreExtensions {
+	return nil
+}
+
+// Clone implements the mandatory Clone interface. We don't really copy the data since
+// there is no need for that.
+func (s *preScoreState) Clone() framework.StateData {
+	return s
+}
+
+func (pl *ImageLocality) PreScore(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodes []*v1.Node) *framework.Status {
+	var containersPullAlways []v1.Container;
+
+	// Filtering containers with ImagePullPolicy different from Always
+	// Ones with Always will score 0 point either way
+	for _, container := range pod.Spec.Containers {
+		if container.ImagePullPolicy != v1.PullAlways {
+			containersPullAlways = append(containersPullAlways, container);
+		}
+	}
+
+	state := &preScoreState{
+		containersPullAlways: containersPullAlways,
+	};
+
+	cycleState.Write(preScoreStateKey, state)
 	return nil
 }
 
